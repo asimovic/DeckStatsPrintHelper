@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Deck Stats Print Utility
-// @version      0.4
+// @version      0.5
 // @description  Fix printing issues on deck stats
 // @author       AlexS
 // @match        https://deckstats.net/decks/*proxies=*
@@ -13,9 +13,9 @@
 // ==/UserScript==
 
 (function() {
-    'use strict';
+  'use strict';
 
-    let printStyle = `
+  let printStyle = `
 <style type="text/css">
 @media print {
   hr {
@@ -31,59 +31,74 @@
 }
 </style>`;
 
-  $(printStyle).appendTo('head');
+$(printStyle).appendTo('head');
 
-  $('#cards_main > img').each(function() {
+$('#cards_main').css('overflow', 'hidden');
 
-    console.log(normalizeUrl($(this).attr('src')));
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: normalizeUrl($(this).attr('src')),
-        responseType: 'blob',
-        onload: function (response) {
-          processImage(response.response);
-        },
-        onerror: function (response) {
-            console.log(response);
-        }
-    });
+$('#cards_main > img').each(function() {
 
-    throw new Error('Stop');
+    //check condition
+    let div = $(this).wrap('<div style="page-break-inside:avoid; width:63mm; height:88mm; float:left;"></div>')
 
-  });
+    $(this).css('width', '61mm');
+    $(this).css('height', '86mm');
+    $(this).css('position', 'absolute');
+    $(this).css('margin', '1mm');
 
-  function processImage(imageData) {
-    const imageUrl = URL.createObjectURL(imageData);
-    $('#cards_main').prepend('<img id="testImg" />');
-    $('#testImg').attr('src', imageUrl);
-    let img = new Image();
-    img.src = imageUrl;
-    img.onload = function() {
-      let canvas = document.createElement('canvas');
-      if(canvas.getContext) {
-        canvas.width = img.width;
-        canvas.height = img.height;
+    let overlay = new Image();
+    overlay.src = "http://via.placeholder.com/480x680/880000";
+    $(overlay).css('position', 'absolute');
+    $(this).before($(overlay));
 
-        let ctx = canvas.getContext("2d");
-        ctx.drawImage(img,0,0);
+//     console.log(normalizeUrl($(this).attr('src')));
+//     GM_xmlhttpRequest({
+//         method: "GET",
+//         url: normalizeUrl($(this).attr('src')),
+//         responseType: 'blob',
+//         onload: function (response) {
+//           processImage(response.response);
+//         },
+//         onerror: function (response) {
+//             console.log(response);
+//         }
+//     });
 
-        img.getPixel = function(x, y) {
-          let data = ctx.getImageData(x, y, 1, 1).data;
-          return [data[0], data[1], data[2], data[3]];
-        };
-        console.log(img.getPixel(20,20));
-      } else {
-        // canvas not supported, fall back
-        img.getPixel = function(x,y) {return [0,0,0,0];};
-      }
-    };
-  }
+//     throw new Error('Stop');
 
-  function normalizeUrl(url) {
-    if (url.startsWith('//')) {
-      return location.protocol + url;
+});
+
+function processImage(imageData) {
+  const imageUrl = URL.createObjectURL(imageData);
+  $('#cards_main').prepend('<img id="testImg" />');
+  $('#testImg').attr('src', imageUrl);
+  let img = new Image();
+  img.src = imageUrl;
+  img.onload = function() {
+    let canvas = document.createElement('canvas');
+    if(canvas.getContext) {
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      let ctx = canvas.getContext("2d");
+      ctx.drawImage(img,0,0);
+
+      img.getPixel = function(x, y) {
+        let data = ctx.getImageData(x, y, 1, 1).data;
+        return [data[0], data[1], data[2], data[3]];
+      };
+      console.log(img.getPixel(20,20));
+    } else {
+      // canvas not supported, fall back
+      img.getPixel = function(x,y) {return [0,0,0,0];};
     }
-    return url;
+  };
+}
+
+function normalizeUrl(url) {
+  if (url.startsWith('//')) {
+    return location.protocol + url;
   }
+  return url;
+}
 
 })();
