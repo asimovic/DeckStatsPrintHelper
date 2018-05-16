@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Deck Stats Print Utility
-// @version      0.5
+// @version      0.6
 // @description  Fix printing issues on deck stats
 // @author       AlexS
 // @match        https://deckstats.net/decks/*proxies=*
@@ -15,30 +15,38 @@
 (function() {
   'use strict';
 
+  // Remove spacing between cards
   let printStyle = `
 <style type="text/css">
-@media print {
-  hr {
-    display: none !important;
+  @media print {
+    hr {
+      display: none !important;
+    }
+    .no_print {
+      display: none !important;
+    }
+    #cards_main {
+      overflow: hidden;
+      page-break-after: always;
+    }
+    .card_proxy {
+      float:left;
+    }
   }
-  #cards_main {
-    overflow: hidden;
-    page-break-after: always;
-  }
-  .card_proxy {
-    float:left;
-  }
-}
 </style>`;
 
-$(printStyle).appendTo('head');
+  $(printStyle).appendTo('head');
 
-$('#cards_main').css('overflow', 'hidden');
+  // Add rounded border overlay
+  var observer = new MutationObserver(function(mutations) {
+    mutations.forEach(updateCardStyles);
+  });
 
-$('#cards_main > img').each(function() {
+  $('#cards_main').css('overflow', 'hidden');
 
+  $('#cards_main > img').each(function() {
     //check condition
-    let div = $(this).wrap('<div style="page-break-inside:avoid; width:63mm; height:88mm; float:left;"></div>')
+    let div = $(this).wrap('<div style="page-break-inside:avoid; width:63mm; height:88mm; float:left;"></div>').parent();
 
     $(this).css('width', '61mm');
     $(this).css('height', '86mm');
@@ -49,6 +57,12 @@ $('#cards_main > img').each(function() {
     overlay.src = "http://via.placeholder.com/480x680/880000";
     $(overlay).css('position', 'absolute');
     $(this).before($(overlay));
+
+    if ($(this).css('display') == 'none') {
+      div.css('display', 'none');
+    }
+
+    observer.observe(this, { attributes : true, attributeFilter : ['style', 'class'] });
 
 //     console.log(normalizeUrl($(this).attr('src')));
 //     GM_xmlhttpRequest({
@@ -65,40 +79,65 @@ $('#cards_main > img').each(function() {
 
 //     throw new Error('Stop');
 
-});
+  });
 
-function processImage(imageData) {
-  const imageUrl = URL.createObjectURL(imageData);
-  $('#cards_main').prepend('<img id="testImg" />');
-  $('#testImg').attr('src', imageUrl);
-  let img = new Image();
-  img.src = imageUrl;
-  img.onload = function() {
-    let canvas = document.createElement('canvas');
-    if(canvas.getContext) {
-      canvas.width = img.width;
-      canvas.height = img.height;
+  function updateCardStyles(mutationRecord) {
+    // Match div and overlay styles with image
+    let parent = $(mutationRecord.target).parent();
 
-      let ctx = canvas.getContext("2d");
-      ctx.drawImage(img,0,0);
-
-      img.getPixel = function(x, y) {
-        let data = ctx.getImageData(x, y, 1, 1).data;
-        return [data[0], data[1], data[2], data[3]];
-      };
-      console.log(img.getPixel(20,20));
-    } else {
-      // canvas not supported, fall back
-      img.getPixel = function(x,y) {return [0,0,0,0];};
+    if (mutationRecord.attributeName === 'style') {
+      if ($(mutationRecord.target).css('display') == 'none') {
+        parent.css('display', 'none');
+      } else {
+        parent.css('display', '');
+      }
+    } else if (mutationRecord.attributeName === 'class') {
+      if ($(mutationRecord.target).hasClass('card_no_print')) {
+        parent.addClass('no_print');
+        $(mutationRecord.target).siblings().each(function() {
+          $(this).addClass('card_no_print');
+        });
+      } else {
+        parent.removeClass('no_print');
+        $(mutationRecord.target).siblings().each(function() {
+          $(this).removeClass('card_no_print');
+        });
+      }
     }
-  };
-}
-
-function normalizeUrl(url) {
-  if (url.startsWith('//')) {
-    return location.protocol + url;
   }
-  return url;
-}
+
+  function processImage(imageData) {
+    const imageUrl = URL.createObjectURL(imageData);
+    $('#cards_main').prepend('<img id="testImg" />');
+    $('#testImg').attr('src', imageUrl);
+    let img = new Image();
+    img.src = imageUrl;
+    img.onload = function() {
+      let canvas = document.createElement('canvas');
+      if(canvas.getContext) {
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        let ctx = canvas.getContext("2d");
+        ctx.drawImage(img,0,0);
+
+        img.getPixel = function(x, y) {
+          let data = ctx.getImageData(x, y, 1, 1).data;
+          return [data[0], data[1], data[2], data[3]];
+        };
+        console.log(img.getPixel(20,20));
+      } else {
+        // canvas not supported, fall back
+        img.getPixel = function(x,y) {return [0,0,0,0];};
+      }
+    };
+  }
+
+  function normalizeUrl(url) {
+    if (url.startsWith('//')) {
+      return location.protocol + url;
+    }
+    return url;
+  }
 
 })();
