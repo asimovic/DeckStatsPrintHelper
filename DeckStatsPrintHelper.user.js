@@ -62,22 +62,32 @@
     }
   })();
 
+  let cardSets = {};
+
   $('#cards_main > img').each(function() {
-    let _this = this;
 
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: normalizeUrl($(this).attr('src')),
-        responseType: 'blob',
-        onload: function (response) {
-          processImage(_this, response.response);
-        },
-        onerror: function (response) {
-            console.log(response);
-        }
-    });
-
+    let src = normalizeUrl($(this).attr('src'));
+    if (!(src in cardSets)) {
+      cardSets[src] = [];
+    }
+    cardSets[src].push(this);
   });
+
+  console.log('found '+Object.keys(cardSets).length);
+
+  for (let src in cardSets) {
+    GM_xmlhttpRequest({
+      method: "GET",
+      url: src,
+      responseType: 'blob',
+      onload: function (response) {
+        processImage(cardSets[src], response.response);
+      },
+      onerror: function (response) {
+          console.log(response);
+      }
+    });
+  }
 
   function normalizeUrl(url) {
     if (url.startsWith('//')) {
@@ -86,41 +96,43 @@
     return url;
   }
 
-  function processImage(origImage, imageData) {
+  function processImage(cardSet, imageData) {
     const imageUrl = URL.createObjectURL(imageData);
     const img = new Image();
     img.src = imageUrl;
     img.onload = function() {
-      overlayBorderIfNeeded(origImage, this);
+      overlayBorderIfNeeded(cardSet, this);
     }
   }
 
-  function overlayBorderIfNeeded(origImage, img) {
+  function overlayBorderIfNeeded(cardSet, img) {
     let size = Math.round(img.height * CORNER_SIZE_FACTOR);
     let data = getCornerData(img, size, size);
     let lines = getCornerLines(data.data, size, size);
 
     if (!testBorderExists(lines, size)) {
-      console.log('Adding border: ' + origImage.title);
-      let div = $(origImage).wrap('<div style="page-break-inside:avoid; width:63mm; height:88mm; float:left;"></div>').parent();
+      for (let card of cardSet) {
+        console.log('Adding border: ' + card.title);
+        let div = $(card).wrap('<div style="page-break-inside:avoid; width:63mm; height:88mm; float:left;"></div>').parent();
 
-      $(origImage).css('width', '61mm');
-      $(origImage).css('height', '86mm');
-      $(origImage).css('position', 'absolute');
-      $(origImage).css('margin', '1mm');
+        $(card).css('width', '61mm');
+        $(card).css('height', '86mm');
+        $(card).css('position', 'absolute');
+        $(card).css('margin', '1mm');
 
-      let overlay = new Image();
-      overlay.src = "http://via.placeholder.com/480x680/880000";
-      $(overlay).css('position', 'absolute');
-      $(origImage).before($(overlay));
+        let overlay = new Image();
+        overlay.src = "http://via.placeholder.com/480x680/880000";
+        $(overlay).css('position', 'absolute');
+        $(card).before($(overlay));
 
-      if ($(origImage).css('display') == 'none') {
-        div.css('display', 'none');
+        if ($(card).css('display') == 'none') {
+          div.css('display', 'none');
+        }
+
+        observer.observe(card, { attributes : true, attributeFilter : ['style', 'class'] });
       }
-
-      observer.observe(origImage, { attributes : true, attributeFilter : ['style', 'class'] });
     } else {
-      console.log('Ignoring: ' + origImage.title);
+      console.log('Ignoring: ' + cardSet[0].title);
     }
   }
 
