@@ -108,7 +108,14 @@
   // Remove spacing between cards
   // Extra css here in-case border check is disabled
   let printStyle = `
-<style type="text/css" id="print-styles">
+<style type="text/css" id="shrink-cards">
+  .shink-card {
+    width :62mm;
+    height: 87mm;
+    margin: 0.5mm;
+  }
+</style>
+<style type="text/css">
   .option {
     display: block;
   }
@@ -219,16 +226,16 @@
       let corners = new Image();
       corners.src = cornersSrc;
       $(corners).css('position', 'absolute');
+      $(corners).addClass('card-corner');
       $(card).after($(corners));
 
       if (needsBorder) {
-        $(card).css('width', '62mm');
-        $(card).css('height', '87mm');
-        $(card).css('margin', '0.5mm');
+        $(card).addClass('shink-card');
 
         let overlay = new Image();
         overlay.src = blackBorderSrc;
         $(overlay).css('position', 'absolute');
+        $(corners).addClass('card-border');
         $(card).after($(overlay));
       }
 
