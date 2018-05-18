@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Deck Stats Print Utility
-// @version      0.10
+// @version      1.0
 // @description  Fix printing issues on deck stats
 // @author       AlexS
 // @match        https://deckstats.net/deck*proxies=*
@@ -29,13 +29,15 @@
   var roundBorders = true;
   var showCorners = true;
 
+  // Settings
+  //----------------------------------------
   let settingsDiv = `
 <div class="select_cards" style="width:20%">
-  <h2 id="asd">Print Options</h2>    
+  <h2 id="asd">Print Options</h2>
   <label class="option" style="margin-bottom:5px;">
     <input id="printSpacing" type="textbox" style="width:50px;">
-    <span>Print Spacing (mm)</span>
-  </label>   
+    <span>Spacing (mm)</span>
+  </label>
   <label class="option">
     <input id="roundBorders" type="checkbox"/>
     <span>Round Borders</span>
@@ -56,17 +58,20 @@
     if (!Number.isNaN(Number.parseFloat(val))) {
       printSpacing = val;
       saveOptions();
+      updatePrintSpace();
     }
   });
 
   $('#roundBorders').change(function(){
     roundBorders = $(this).is(':checked');
     saveOptions();
+    updateRoundBorders();
   });
 
   $('#showCorners').change(function(){
     showCorners = $(this).is(':checked');
     saveOptions();
+    updateShowCorners();
   });
 
   function loadBool(key, def) {
@@ -91,7 +96,7 @@
       roundBorders = loadBool('roundBorders', roundBorders);
       showCorners = loadBool('showCorners', showCorners);
     }
-    
+
     $('#printSpacing').val(printSpacing);
     $('#roundBorders').prop('checked', roundBorders);
     $('#showCorners').prop('checked', showCorners);
@@ -105,19 +110,49 @@
     }
   }
 
-  // Remove spacing between cards
-  // Extra css here in-case border check is disabled
-  let printStyle = `
-<style type="text/css" id="shrink-cards">
+// Styles
+//----------------------------------------
+  let borderEnableStyles = `
+<style type="text/css" id="border-styles">
   .shink-card {
     width :62mm;
     height: 87mm;
     margin: 0.5mm;
   }
-</style>
+</style>`;
+  let borderDisableStyles = `
+<style type="text/css" id="border-styles">
+  .card-border {
+    display: none !important;
+  }
+</style>`;
+  let cornerDisableStyles = `
+<style type="text/css" id="corner-styles">
+  .card-corner {
+    display: none !important;
+  }
+</style>`;
+  function getPrintSpaceStyles(space) {
+    return `
+<style type="text/css" id="print-space-styles">
+  @media print {
+    .print-space {
+      margin: ${space}mm;
+    }
+  }
+</style>`;
+  }
+
+  let printStyles = `
 <style type="text/css">
   .option {
     display: block;
+  }
+  .card-div {
+    page-break-inside: avoid;
+    width: 63mm;
+    height: 88mm;
+    display: inline-block;
   }
   @media print {
     hr {
@@ -127,23 +162,25 @@
       display: none !important;
     }
     #cards_main {
-      overflow: hidden;
       page-break-after: always;
-    }
-    .card_proxy {
-      float: left;
     }
     .card-div {
       float: left;
-      display: block !important;
     }
   }
 </style>`;
 
-  $(printStyle).appendTo('head');
+// Remove spacing between cards
+//----------------------------------------
+  $(printStyles).appendTo('head');
   $('#cards_main').css('overflow', 'hidden');
 
   // Add rounded border overlay
+  //----------------------------------------
+  // Setup
+  var cardsRequested = false;
+  var cardSets = {};
+
   var observer = new MutationObserver(function(mutations) {
     mutations.forEach(updateCardStyles);
   });
@@ -162,10 +199,7 @@
     };
   })();
 
-  let cardSets = {};
-
   $('#cards_main > img').each(function() {
-
     let src = normalizeUrl($(this).attr('src'));
     if (!(src in cardSets)) {
       cardSets[src] = [];
@@ -173,21 +207,7 @@
     cardSets[src].push(this);
   });
 
-  console.log('found '+Object.keys(cardSets).length);
-
-  for (let src in cardSets) {
-    GM_xmlhttpRequest({
-      method: "GET",
-      url: src,
-      responseType: 'blob',
-      onload: function (response) {
-        processImage(cardSets[src], response.response);
-      },
-      onerror: function (response) {
-          console.log(response);
-      }
-    });
-  }
+  console.log('found ' + Object.keys(cardSets).length);
 
   function normalizeUrl(url) {
     if (url.startsWith('//')) {
@@ -196,6 +216,59 @@
     return url;
   }
 
+  //Execution
+  updateRoundBorders();
+  updatePrintSpace();
+
+  function updateRoundBorders() {
+    $('#border-styles').remove();
+
+    if (roundBorders && Object.keys(cardSets).length) {
+      $(borderEnableStyles).appendTo('head');
+      updateShowCorners();
+      if (!cardsRequested) {
+        requestCards();
+      }
+    } else {
+      $(borderDisableStyles).appendTo('head');
+      updateShowCorners(false);
+    }
+  }
+
+  function updateShowCorners(force) {
+    let show = typeof force !== 'undefined' ? force : showCorners
+
+    $('#corner-styles').remove();
+    if (!show) {
+      $(cornerDisableStyles).appendTo('head');
+    }
+  }
+
+  function updatePrintSpace() {
+    $('#print-space-styles').remove();
+    let styles = getPrintSpaceStyles(printSpacing);
+    $(styles).appendTo('head');
+  }
+
+  function requestCards() {
+    cardsRequested = true;
+
+    for (let src in cardSets) {
+      GM_xmlhttpRequest({
+        method: "GET",
+        url: src,
+        responseType: 'blob',
+        onload: function (response) {
+          processImage(cardSets[src], response.response);
+        },
+        onerror: function (response) {
+            console.log(response);
+        }
+      });
+    }
+  }
+
+  // Processing
   function processImage(cardSet, imageData) {
     const imageUrl = URL.createObjectURL(imageData);
     const img = new Image();
@@ -218,11 +291,12 @@
     }
 
     for (let card of cardSet) {
-      //Always wrap images to prevent reordering
-      let div = $(card).wrap('<div class="card-div" style="page-break-inside:avoid; width:63mm; height:88mm; display:inline-block;"></div>').parent();
+      //always wrap images to prevent reordering
+      let div = $(card).wrap('<div class="card-div print-space"></div>').parent();
 
       $(card).css('position', 'absolute');
 
+      //card corners
       let corners = new Image();
       corners.src = cornersSrc;
       $(corners).css('position', 'absolute');
@@ -232,10 +306,11 @@
       if (needsBorder) {
         $(card).addClass('shink-card');
 
+        //border overlay
         let overlay = new Image();
         overlay.src = blackBorderSrc;
         $(overlay).css('position', 'absolute');
-        $(corners).addClass('card-border');
+        $(overlay).addClass('card-border');
         $(card).after($(overlay));
       }
 
