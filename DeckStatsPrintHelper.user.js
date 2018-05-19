@@ -117,9 +117,9 @@
   let borderEnableStyles = `
 <style type="text/css" id="border-styles">
   .shink-card {
-    width :62mm;
-    height: 87mm;
-    margin: 0.5mm;
+    width :61.5mm !important;
+    height: 86.5mm !important;
+    margin: 0.75mm !important;
   }
 </style>`;
   let borderDisableStyles = `
