@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Deck Stats Print Utility
-// @version      1.3
+// @version      1.4
 // @description  Fix printing issues on deck stats
 // @author       AlexS
 // @match        https://deckstats.net/deck*proxies=*
@@ -163,9 +163,9 @@
   let borderEnableStyles = `
 <style type="text/css" id="border-styles">
   .shink-card {
-    width :61.5mm !important;
-    height: 86.5mm !important;
-    margin: 0.75mm !important;
+    width :60.5mm !important;
+    height: 85.5mm !important;
+    margin: 1.25mm !important;
   }
 </style>`;
   let borderDisableStyles = `
