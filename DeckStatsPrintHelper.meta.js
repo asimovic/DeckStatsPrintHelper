@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Deck Stats Print Utility
-// @version      1.4
+// @version      1.5
 // @description  Fix printing issues on deck stats
 // @author       AlexS
 // @match        https://deckstats.net/deck*proxies=*

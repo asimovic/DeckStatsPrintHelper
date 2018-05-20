@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Deck Stats Print Utility
-// @version      1.4
+// @version      1.5
 // @description  Fix printing issues on deck stats
 // @author       AlexS
 // @match        https://deckstats.net/deck*proxies=*
@@ -279,7 +279,7 @@
   })();
 
   //Execution
-  $('#cards_main > img').each(function() {
+  $('#cards_main > img, #cards_side > img').each(function() {
     let src = normalizeUrl($(this).attr('src'));
     if (!(src in cardSets)) {
       cardSets[src] = [];
