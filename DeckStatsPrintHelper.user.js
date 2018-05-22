@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Deck Stats Print Utility
-// @version      1.5
+// @version      1.6
 // @description  Fix printing issues on deck stats
 // @author       AlexS
 // @match        https://deckstats.net/deck*proxies=*
@@ -15,6 +15,8 @@
 (function() {
   'use strict';
 
+  const CARD_WIDTH = 63;
+  const CARD_HEIGHT = 88;
   const CORNER_SIZE = 0.02; //height multiplier
   const BORDER_COLOR_SIZE = 0.01; //height multiplier
   const BORDER_COLOR_LUMA = 100; //luma threshold
@@ -22,6 +24,11 @@
   const BORDER_TEST_PIXEL_DIFF = 3; //rgb difference
   const BORDER_TEST_RANGE = 1; //max range from height
   const BORDER_TEST_THRESHOLD = 0.5; //percent within range
+  const CARD_WIDTH_SIZE = 0.1; //width mutliplier
+  const CARD_WITDH_PIXEL_DIFF = 100; //rgb sum difference
+  const CARD_WIDTH_THRESHOLD = 1; //width non solid lines threshold
+  const CARD_WIDTH_OFFSET = +0; //border width offset
+  const CARD_WIDTH_INNER = 58; //58mm inner width
 
   let borderSrc = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgkAAALYCAQAAABcCan5AAAAAmJLR0QA/4ePzL8AAAAJcEhZcwAAIEwAACBMATnDo8YAAAvuSURBVHja7dxNc5XnfcDh3zl6hJAQAozBvNoGY0rTkGQydUPjTjbtql8yn6KLdqYbz9SdqTvTpm5sHDsE4+Aag4OFBEjo5XTBS7GRaJaRdF0LLcSjs/jPnB/3fT/POaPJpJf4tt/2SZ92rS+61Tct9bCX/gHwJ2XcVLMd7EivdaaLXepi55vb9vph61+vt9pqy93ueje73bfdb7WNNk0YdpRJtdlaq93v224133R1vLn2Nd3ohetHW60SNrvVta53o5vd6k6LLXW/lVZaa8MqAXaQUaOmmm5/+zvQwY50vNOd62JvdaLZZ9kYbbdK2GitxT7u3/uvrvZFy621WU2aPPlTYCetEiZNWu9ho0bVuJmOdaGf9bD1zrb/uRxskYSVvu6zPu6TPuvzbnZPBGBXbB6e/txorZUetdJXXe9yb3XySQYmjb6/cXjUV/13/9R7fdlKK623YZqwCzcTU0210KWu9PP+plefS8Lwfx1Z6Yv+sw96v49aNTXYxauG9da73VqTxi304w41PNk+PEvCg37fB/1DH3SrR2YGe8BiH7bRqOV+2pnvniWs92W/6v3+tc/NCfbE5mHSpMU+arpJC73a/ueTsNRH/WP/1i2Tgj2yeXjsXh826nSnOttM44ba7EE3+1Xvdc2jSLDn0nC3X3eh15vudPsaar0b/Ucfd1sQYA9uH2qpq53oQMceJ2Gl3/R+v3GoCHt0+7DR75rtVD9pvqEW+22/7vetbXX9yNBg13Xge+/r9W413fXutNDwdV92o+v94cXHkjy4CHskChvd6Wa/a9TweTe62Tetb7XNqI3u96BNqwXYBSEYN9eBprb6x9W+7nqbDVf7n+5sFYTHlvvn/qXl9m/9MsAOsdFK873b33Zo614sdr2Vhk+60+L29xru916/bLmZxmYKO9hmq8230ZWtk1DL3Wi54XqLLW2fhI2WWmrSQxOFHW+ppe0/y3i/r7rfcLMHPdj+Jcbtb6YVs4RdYKb92633Jz3sTvcbbvXo5d+nOGXLALvEePszwUkrLfaw4W7r/99DSm5Gwu7w0vfyeg961LDUZuve9bDna7HeSlMNq0++VRHY2zZ61Khh3SSAarPNRo4Ogee3D5IAPEcSAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBABJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkAQASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJAJAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQCQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAFAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEIwAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJAJAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQCQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAFAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBABJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkwAkASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAFAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBABJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAJAGQBEASAEkAkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJACQBkARAEgBJAJAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQAkAZAEQBIASQB2ZRJGZgA8MwxN2mzTJIBqmG2zVUmAPW/UqBoOtd6k9SYmAnvauKlGDcd72KMeviwJjhtgtywEXpqEfY0bn+xYcy+7bsOuAnaJzTa2r8XQbHMNr/eHbr3sJVZaNUnYFVZb2f6/+Onm2tdwrrmuNd7uuqkOdrDlZjzBADt8hbDafAeb2m6VMNOhZhsuNteHTbW+9XUH+kVTLbd/uxcCdoSNVprv3Q5sd8GBjrXQ8HZDrzaz3e5gvr/r5206YoQdb9K4ue2SMGq+M73ScLrVTnSslda+f9dhUk210IJZwq5Kwxb3HkYd7M1ONl7oeGc729EXdwZWBrA7jbb61eEu9MPGNd/r/Xknm/6j/hDYfUGo+U71Zucbal8XutvXfWpUsEcbcaSLvd2pjjeuoTNd7u0OmQzsSbOd76dd7GhTj5NwuNf7s37UCXcaYQ+uEY72o37RD5qthqfLhkv9dZt90DdPLvIxKNgLxi30Zu/0bq81PE1CTfdmV9roXh+2VIIAe8LQyS71V13utSc3GIanS4dj/WVDS613tXsmBXtiy/BKl/v7rnTu2aHBUDVp1FSH+0G3W2uqqy21YaUAuzgGQ7Md762u9G5/8dwjCE/OEh470s863IlO9VHXfAASdq3pznaxH3a5S73xnWeShu9e9npHO9IrzbXel609+1bGifMF2MFrgqc/R42aaroT/aR3eqcfd+h7H3J+loSnjz0f6HzjDna2G93ubost97BHrbXRZhNhgB2Wg1FTDe1rf7PNd7jDHe10F7vQ+V558frJC+/xjR51v7t90ad91ufd7JuWuv8kC5IAO8m4qWba38EO92pneqNznetUC801891twosbh6cHjbPNdqSZHnavxb5tuZWmGjfyvALswFXCuKF9zbbQ0U72Rhd6bdvvRPpfACCmxuV2r1YAAAAASUVORK5CYII=";
   let cornersSrc = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgkAAALYAQMAAADMzvMxAAAABlBMVEUAAAD/AAAb/40iAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAAIEwAACBMATnDo8YAAACmSURBVHja7dKxDYNQEETBQwQOKcGluDSuNEqhBEIC5G+7hk0sNFPAS3ZrHJWYR9fYokT9Ep0l1q53Vqhn1xUmlq4zTDy6jjAxd+15Ity0pjxRXf0HCQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALinvkeia8sTe1iY8sTcdeSJM0wsXVeeGGHilSfWbyI7xjT6A0VYJjBwx7DQAAAAAElFTkSuQmCC";
@@ -117,21 +124,21 @@
   var createColorBorder = function(borderSrc, r, g, b) {
     return new Promise(resolve => {
       console.log(`Create color border [${r}, ${g}, ${b}]`);
-  
+
       let srcImg = document.createElement('img');
       srcImg.onload = () => {
         let canvas = getCanvasCached(srcImg.width, srcImg.height);
         canvas.ctx.drawImage(srcImg, 0, 0);
-  
+
         //base image is already a black border
         if (r != 0 || g != 0 || b != 0) {
           let data = canvas.ctx.getImageData(0, 0, srcImg.width, srcImg.height);
           let pixelData = data.data;
-          
+
           //base image is grayscale, with alpha fade in middle and white fade on outside
           //tread outside black px as alpha and composite with white background
           for (let pix = 0; pix < srcImg.width * srcImg.height * 4; pix += 4) {
-            if (pixelData[pix + 3] > 0) { 
+            if (pixelData[pix + 3] > 0) {
               if (pixelData[pix] == 0) { //full black replace
                 pixelData[pix] = r;
                 pixelData[pix + 1] = g;
@@ -144,30 +151,33 @@
               }
             }
           }
-  
+
           canvas.ctx.clearRect(0, 0, srcImg.width, srcImg.height);
           canvas.ctx.putImageData(data, 0, 0);
         }
-  
+
         var img = document.createElement('img');
         img.onload = () => resolve(img);
         img.src = canvas.toDataURL();
       };
-  
+
       srcImg.src = borderSrc;
     });
   };
 
 // Styles
 //----------------------------------------
-  let borderEnableStyles = `
+  let borderEnableStylesCount = 0;
+  let borderEnableStylesEle = $(`
 <style type="text/css" id="border-styles">
-  .shink-card {
-    width :60.5mm !important;
-    height: 85.5mm !important;
-    margin: 1.25mm !important;
+</style>`);
+  function getBorderStyle(idx, width, height, margin) {
+    return `.shink-card-${idx} {
+      width : ${Math.round(width * 1000) / 1000}mm !important;
+      height: ${Math.round(height * 1000) / 1000}mm !important;
+      margin: ${Math.round(margin * 1000) / 1000}mm !important;
+    }`;
   }
-</style>`;
   let borderDisableStyles = `
 <style type="text/css" id="border-styles">
   .card-border {
@@ -198,9 +208,10 @@
   }
   .card-div {
     page-break-inside: avoid;
-    width: 63mm;
-    height: 88mm;
+    width: ${CARD_WIDTH}mm;
+    height: ${CARD_HEIGHT}mm;
     display: inline-block;
+    cursor: pointer;
   }
   @media print {
     hr {
@@ -297,7 +308,7 @@
     $('#border-styles').remove();
 
     if (roundBorders && Object.keys(cardSets).length) {
-      $(borderEnableStyles).appendTo('head');
+      borderEnableStylesEle.appendTo('head');
       if (!cardsRequested) {
         requestCards();
       }
@@ -335,6 +346,7 @@
     if ($(card).css('display') == 'none') {
       div.css('display', 'none');
     }
+
     observer.observe(card, { attributes : true, attributeFilter : ['style', 'class'] });
   }
 
@@ -369,11 +381,16 @@
 
     let needsBorder = !testBorderExists(lines, size);
     if (needsBorder) {
-      var whiteBorder = testBorderWhite(img);
+      let whiteBorder = testBorderWhite(img);
       console.log(`Adding border (${whiteBorder ? 'white' : 'black'}): ${cardSet[0].title}`);
+      let styleIdx = createShrinkStyle(img);
 
       for (let card of cardSet) {
-        $(card).addClass('shink-card');
+        $(card).addClass(`shink-card-${styleIdx}`);
+
+        $(card).parent().click(function() {
+          $(this).find('.card_proxy').toggleClass('card_no_print');
+        });
 
         //border overlay
         var overlayPromise = whiteBorder ?
@@ -466,6 +483,93 @@
     }
 
     return countWhite / width / height >= BORDER_COLOR_THRESHOLD;
+  }
+
+  function createShrinkStyle(img) {
+    let widths = getBorderWidths(img);
+    let idx = borderEnableStylesCount++;
+
+    if (widths === undefined) {
+      borderEnableStylesEle.append(
+        getBorderStyle(idx, 60.5, 85.5, 1.25));
+    } else {
+      let innerWidthPx = img.width - widths.x1 - widths.x2;
+      let outerWidthMm = img.width / innerWidthPx * CARD_WIDTH_INNER;
+      let margin = (CARD_WIDTH - outerWidthMm) / 2;
+
+      borderEnableStylesEle.append(
+        getBorderStyle(idx, outerWidthMm, CARD_HEIGHT - 2 * margin, margin));
+    }
+
+    return idx;
+  }
+
+  function getBorderWidths(img, threshold, offset, pixelDiff) {
+    pixelDiff = pixelDiff !== undefined ? pixelDiff : CARD_WITDH_PIXEL_DIFF;
+    threshold = threshold !== undefined ? threshold : CARD_WIDTH_THRESHOLD;
+    offset = offset !== undefined ? offset : CARD_WIDTH_OFFSET;
+
+    let width1 = findBorderWidth(img, 1, threshold, offset, pixelDiff);
+    let width2 = findBorderWidth(img, -1, threshold, offset, pixelDiff);
+
+    if (width1 === undefined){
+      width1 = width2;
+    } else if (width2 === undefined) {
+      width2 = width1;
+    }
+
+    if (width2 === undefined){
+      return undefined;
+    }
+
+    return {
+      x1: width1,
+      x2: width2
+    };
+  }
+
+  function findBorderWidth(img, xDir, threshold, offset, pixelDiff) {
+    let width = Math.round(img.width * CARD_WIDTH_SIZE);
+    let height = width * 2;
+    let sx = xDir > 0 ? 0 : img.width - width;
+    let sy = Math.round(Math.round(img.height / 2 - height / 2));
+    let pixelData = getImageData(img, sx, sy, width, height).data;
+
+    let countNonSolid = 0;
+
+    for (let lx = 0; lx < width; lx++) {
+      let x = xDir > 0 ? lx : width - lx - 1;
+
+      //first pixel
+      let r = pixelData[x * 4 + 0];
+      let g = pixelData[x * 4 + 1];
+      let b = pixelData[x * 4 + 2];
+      let a = pixelData[x * 4 + 3];
+      let nonSolid = false;
+
+      for (let y = 1; y < height; y++) {
+        let offset = (x + y * width) * 4;
+
+        if ((Math.abs(r - pixelData[offset + 0]) +
+             Math.abs(g - pixelData[offset + 1]) +
+             Math.abs(b - pixelData[offset + 2]) +
+             Math.abs(a - pixelData[offset + 3])) >= pixelDiff) {
+          nonSolid = true;
+          break;
+        }
+      }
+
+      if (nonSolid){
+        countNonSolid++;
+        if (countNonSolid >= threshold) {
+          return lx + offset;
+        }
+      } else {
+        countNonSolid = 0;
+      }
+    }
+
+    return undefined;
   }
 
   function updateCardStyles(mutationRecord) {
